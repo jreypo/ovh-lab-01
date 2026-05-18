@@ -1,0 +1,23 @@
+services:
+  chroma:
+    image: chromadb/chroma:latest
+    container_name: ovh-lab-01-chroma
+    restart: unless-stopped
+    ports:
+      - "${CHROMA_PORT:-8000}:8000"
+    volumes:
+      - chroma_data:/data
+    environment:
+      - IS_PERSISTENT=TRUE
+      - PERSIST_DIRECTORY=/data
+      - ANONYMIZED_TELEMETRY=FALSE
+    healthcheck:
+      test: ["CMD", "/bin/sh", "-c", "exec 3<>/dev/tcp/localhost/8000 && echo -e 'GET /api/v2/heartbeat HTTP/1.0\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200 OK'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+volumes:
+  chroma_data:
+    driver: local

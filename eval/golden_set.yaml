@@ -1,0 +1,13 @@
+# Golden set de evaluación — Lab 1
+# Formato: lista de preguntas con el documento esperado en el retrieval.
+# Convención:
+#   id:               identificador estable (usar en métricas)
+#   question:         la pregunta tal cual la lanzaríamos al RAG
+#   expected_slugs:   uno o varios slugs de post que DEBEN aparecer en top-k
+#   expected_section: (opcional) heading concreto que esperamos recuperar
+#   category:         factual | conceptual | comparativa | howto
+#   notes:            contexto breve para ti, no se usa en métricas
+#
+# Pendiente: rellenar 20-30 entradas con preguntas reales sobre tu blog.
+
+questions: []

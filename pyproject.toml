@@ -1,0 +1,38 @@
+[project]
+name = "ovh-lab-01"
+version = "0.1.0"
+description = "RAG pipeline from scratch over jreypo.io corpus using OVH AI Endpoints"
+requires-python = ">=3.13"
+dependencies = [
+    "openai>=1.54.0",
+    "chromadb>=0.5.20",
+    "httpx>=0.27.0",
+    "python-dotenv>=1.0.1",
+    "python-frontmatter>=1.1.0",
+    "markdown-it-py>=3.0.0",
+    "pyyaml>=6.0.2",
+    "rich>=13.9.0",
+    "tqdm>=4.66.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "jupyterlab>=4.3.0",
+    "ipykernel>=6.29.0",
+    "ruff>=0.7.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]

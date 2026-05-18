@@ -1,0 +1,36 @@
+# Secrets
+.env
+.env.local
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+
+# Notebooks
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Local data
+chroma_data/
+data/
+*.sqlite3
+
+# IDE / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Build artifacts
+dist/
+build/
