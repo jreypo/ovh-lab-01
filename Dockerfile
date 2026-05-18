@@ -11,9 +11,9 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir .
 
 COPY src/ ./src/
-COPY scripts/ ./scripts/
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
-CMD ["python", "-m", "scripts.smoke_test"]
+# CMD lo definirás cuando montes el pipeline.
+CMD ["python", "-c", "print('image OK; define a CMD')"]
