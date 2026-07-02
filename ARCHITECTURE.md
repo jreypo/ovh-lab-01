@@ -1,42 +1,42 @@
-# Lab 1 — Arquitectura: RAG pipeline sobre jreypo.io
+# Lab 1 — Architecture: RAG pipeline over jreypo.io
 
-Spec técnica del lab. Sirve de base para que escribas la implementación a mano.
-Cada sección define **qué** hay que construir y **por qué**, sin dictar el cómo
-en código.
+Technical spec for the lab. It serves as the basis for you to write the
+implementation by hand. Each section defines **what** needs to be built and
+**why**, without dictating the how in code.
 
 ---
 
-## 1. Objetivo
+## 1. Goal
 
-Construir un RAG pipeline funcional sobre el corpus del blog `jreypo.io` y, en
-tres fases progresivas, observar cómo cambia la calidad del retrieval cuando
-cambiamos la estrategia de chunking y la estrategia de query:
+Build a working RAG pipeline over the corpus of the `jreypo.io` blog and, in
+three progressive phases, observe how retrieval quality changes as we change the
+chunking strategy and the query strategy:
 
-1. **Fase 1**: chunking naïve (tamaño fijo).
-2. **Fase 2**: chunking semántico por secciones Markdown.
-3. **Fase 3**: HyDE (Hypothetical Document Embeddings).
+1. **Phase 1**: naïve chunking (fixed size).
+2. **Phase 2**: semantic chunking by Markdown sections.
+3. **Phase 3**: HyDE (Hypothetical Document Embeddings).
 
-Lo importante no es llegar al pipeline más bonito sino **medir** la diferencia
-entre fases con un golden set propio, y entender por qué cada cambio mueve la
-métrica.
+The point is not to reach the prettiest pipeline but to **measure** the
+difference between phases with our own golden set, and to understand why each
+change moves the metric.
 
 ---
 
 ## 2. Stack
 
-| Capa | Elección | Notas |
+| Layer | Choice | Notes |
 |---|---|---|
-| Embeddings | OVH AI Endpoints — `bge-multilingual-gemma2` | 3584 dims, contexto 8192 tokens, multilingüe (el blog mezcla ES/EN). €0.01/M tokens. |
-| Vector store | ChromaDB (Docker) | Single-node, persistencia en volumen. Cliente Python en modo HTTP. |
-| Generación | OVH AI Endpoints — `gpt-oss-120b` | Mismo SDK OpenAI-compat. Usado para respuesta final y para HyDE. |
-| Cliente | `openai` SDK con `base_url` apuntando a OVH | OVH expone API compatible OpenAI; un único SDK vale para embed + chat. |
-| Runtime dev | Python 3.14 en venv local + Chroma en Docker | Iteración rápida. Chroma fuera de Python evita re-arrancar al cambiar código. |
-| Runtime bonus | Kubernetes (homelab) | Al final del lab: deployment de Chroma + Job de ingesta + Deployment de app. |
-| Lenguaje | Python ≥ 3.13 | Definido en `pyproject.toml`. |
+| Embeddings | OVH AI Endpoints — `bge-multilingual-gemma2` | 3584 dims, 8192-token context, multilingual (English corpus, but queries may come in ES/EN). €0.01/M tokens. |
+| Vector store | ChromaDB (Docker) | Single-node, volume persistence. Python client in HTTP mode. |
+| Generation | OVH AI Endpoints — `gpt-oss-120b` | Same OpenAI-compat SDK. Used for the final answer and for HyDE. |
+| Client | `openai` SDK with `base_url` pointing to OVH | OVH exposes an OpenAI-compatible API; a single SDK works for embed + chat. |
+| Dev runtime | Python 3.14 in a local venv + Chroma in Docker | Fast iteration. Chroma outside Python avoids restarting when the code changes. |
+| Bonus runtime | Kubernetes (homelab) | At the end of the lab: Chroma deployment + ingestion Job + app Deployment. |
+| Language | Python ≥ 3.13 | Defined in `pyproject.toml`. |
 
 ---
 
-## 3. Vista de componentes
+## 3. Component view
 
 ```
 ┌──────────────────────────┐
@@ -90,9 +90,9 @@ métrica.
 
 ---
 
-## 4. Flujo de datos
+## 4. Data flow
 
-**Ingesta** (offline, una vez por fase):
+**Ingestion** (offline, once per phase):
 
 ```
 posts dir → load_all_posts() → [Post]
@@ -101,64 +101,64 @@ posts dir → load_all_posts() → [Post]
             → chroma.upsert(ids, texts, metadatas, embeddings)
 ```
 
-**Query** (online, por pregunta):
+**Query** (online, per question):
 
 ```
 question
-  ├─ (fase 1/2) → embed(question)        ──┐
-  └─ (fase 3)   → hyde_doc = chat(prompt)  │
-                  → embed(hyde_doc)        │
-                                           ▼
+  ├─ (phase 1/2) → embed(question)        ──┐
+  └─ (phase 3)   → hyde_doc = chat(prompt)  │
+                  → embed(hyde_doc)         │
+                                            ▼
                               chroma.query(vector, top_k)
-                                           │
-                                           ▼
+                                            │
+                                            ▼
                               context = join([chunk.text, ...])
-                                           │
-                                           ▼
+                                            │
+                                            ▼
                               chat([sys, user(question + context)])
-                                           │
-                                           ▼
-                                      respuesta
+                                            │
+                                            ▼
+                                        answer
 ```
 
 ---
 
-## 5. Estructura del proyecto
+## 5. Project structure
 
-Lo que YA está hecho (scaffold):
+What is ALREADY done (scaffold):
 
 ```
 ovh-lab-01/
-├── .env.example          ← variables a rellenar
+├── .env.example          ← variables to fill in
 ├── .gitignore            ← .env, .venv/, chroma_data/, __pycache__/
-├── docker-compose.yml    ← servicio Chroma con volumen persistente
-├── Dockerfile            ← imagen Python para fase k8s (CMD por definir)
+├── docker-compose.yml    ← Chroma service with persistent volume
+├── Dockerfile            ← Python image for the k8s phase (CMD to be defined)
 ├── pyproject.toml        ← deps: openai, chromadb, frontmatter, dotenv...
 ├── src/
 │   ├── __init__.py
-│   └── config.py         ← carga .env → Settings dataclass
+│   └── config.py         ← loads .env → Settings dataclass
 ├── eval/
-│   └── golden_set.yaml   ← formato vacío esperando preguntas
-├── notebooks/            ← vacío
-└── k8s/                  ← vacío (bonus)
+│   └── golden_set.yaml   ← empty format awaiting questions
+├── notebooks/            ← empty
+└── k8s/                  ← empty (bonus)
 ```
 
-Lo que TÚ vas a crear:
+What YOU are going to create:
 
 ```
 src/
-├── loader.py             ← lee .md de Hugo → Post
-├── chunker.py            ← Post → list[Chunk] (2 estrategias)
-├── ovh_client.py         ← wrapper OpenAI-compat (embed + chat)
-├── ingest.py             ← orquesta posts → chunks → embed → Chroma
+├── loader.py             ← reads Hugo .md → Post
+├── chunker.py            ← Post → list[Chunk] (2 strategies)
+├── ovh_client.py         ← OpenAI-compat wrapper (embed + chat)
+├── ingest.py             ← orchestrates posts → chunks → embed → Chroma
 ├── retriever.py          ← query → top-k chunks (dense | hyde)
-└── pipeline.py           ← end-to-end: query → respuesta
+└── pipeline.py           ← end-to-end: query → answer
 
 scripts/
-└── smoke_test.py         ← chequea blog + Chroma + OVH
+└── smoke_test.py         ← checks blog + Chroma + OVH
 
 eval/
-└── run_eval.py           ← Recall@k y MRR sobre golden_set.yaml
+└── run_eval.py           ← Recall@k and MRR over golden_set.yaml
 
 notebooks/
 ├── 01_naive_chunking.ipynb
@@ -168,26 +168,26 @@ notebooks/
 
 ---
 
-## 6. Módulos `src/` — contratos sugeridos
+## 6. `src/` modules — suggested contracts
 
-Estos son contratos, no implementaciones. Siéntete libre de variar nombres o
-firma si en el momento de implementar ves una forma mejor.
+These are contracts, not implementations. Feel free to vary names or signatures
+if, at implementation time, you see a better way.
 
 ### `loader.py`
 
-Responsabilidad: leer los `.md` del directorio `content/posts/` del blog y
-producir objetos `Post` con frontmatter parseado.
+Responsibility: read the `.md` files in the blog's `content/posts/` directory and
+produce `Post` objects with parsed frontmatter.
 
-Contrato:
+Contract:
 
 ```python
 @dataclass(frozen=True)
 class Post:
-    slug: str             # extraído del nombre de fichero
-    title: str            # de frontmatter
-    date: date | None     # de frontmatter o del nombre de fichero
+    slug: str             # extracted from the filename
+    title: str            # from frontmatter
+    date: date | None     # from frontmatter or from the filename
     tags: tuple[str, ...]
-    body: str             # markdown sin frontmatter
+    body: str             # markdown without frontmatter
     source_path: Path
 
     @property
@@ -196,31 +196,31 @@ class Post:
 def load_all_posts(posts_dir: Path) -> list[Post]: ...
 ```
 
-Detalles a resolver al implementar:
-- Nombre de fichero del blog: `YYYY-MM-DD-slug.md`. Hay que parsearlo.
-- Frontmatter Hugo en YAML entre `---`. Usa `python-frontmatter`.
-- Filtrar `_index.md` y ficheros vacíos.
-- Tags puede venir como string o lista en YAML.
+Details to resolve at implementation time:
+- Blog filename: `YYYY-MM-DD-slug.md`. It must be parsed.
+- Hugo frontmatter in YAML between `---`. Use `python-frontmatter`.
+- Filter out `_index.md` and empty files.
+- Tags may come as a string or a list in YAML.
 
 ### `chunker.py`
 
-Responsabilidad: partir un `Post` en `Chunk`s. Dos estrategias separadas, una
-por fase.
+Responsibility: split a `Post` into `Chunk`s. Two separate strategies, one per
+phase.
 
-Contrato común:
+Common contract:
 
 ```python
 @dataclass(frozen=True)
 class Chunk:
-    chunk_id: str           # determinista; ver §11
-    text: str               # contenido del chunk (markdown)
+    chunk_id: str           # deterministic; see §11
+    text: str               # chunk content (markdown)
     post_slug: str
     post_title: str
     post_date: str | None   # ISO 8601
     source_url: str         # https://jreypo.io/YYYY/MM/DD/slug/
-    chunk_index: int        # orden dentro del post
+    chunk_index: int        # order within the post
     strategy: str           # "naive" | "semantic_md"
-    section_heading: str | None  # solo en semantic_md
+    section_heading: str | None  # only in semantic_md
 
 def chunk_post_naive(post: Post, *, chunk_chars: int, overlap: int) -> list[Chunk]: ...
 def chunk_post_semantic_md(post: Post, *, max_chars: int) -> list[Chunk]: ...
@@ -228,17 +228,17 @@ def chunk_post_semantic_md(post: Post, *, max_chars: int) -> list[Chunk]: ...
 
 ### `ovh_client.py`
 
-Responsabilidad: wrapper fino sobre el SDK `openai` con `base_url` de OVH.
+Responsibility: a thin wrapper over the `openai` SDK with OVH's `base_url`.
 
-Contrato:
+Contract:
 
 ```python
 class OVHClient:
     def __init__(self, settings: Settings) -> None: ...
 
     def embed(self, texts: Sequence[str]) -> list[list[float]]: ...
-    # batching interno si len(texts) > BATCH_SIZE
-    # reintentos con backoff exponencial en 429/5xx
+    # internal batching if len(texts) > BATCH_SIZE
+    # retries with exponential backoff on 429/5xx
 
     def chat(
         self,
@@ -249,15 +249,15 @@ class OVHClient:
     ) -> str: ...
 ```
 
-Detalles a resolver al implementar:
-- ¿La URL base de OVH para `bge-multilingual-gemma2` y `gpt-oss-120b` es la
-  misma o son distintas? Comprobar en el panel. Si son distintas, dos clientes.
-- Batching: 32–64 textos por llamada de embeddings. Mira el límite de OVH.
-- Errores transitorios: `tenacity` o un retry sencillo a mano.
+Details to resolve at implementation time:
+- Is the OVH base URL for `bge-multilingual-gemma2` and `gpt-oss-120b` the same
+  or are they different? Check in the panel. If different, use two clients.
+- Batching: 32–64 texts per embeddings call. Check OVH's limit.
+- Transient errors: `tenacity` or a simple hand-rolled retry.
 
 ### `ingest.py`
 
-Responsabilidad: orquestar posts → chunks → embeddings → Chroma. Idempotente.
+Responsibility: orchestrate posts → chunks → embeddings → Chroma. Idempotent.
 
 Pseudo:
 
@@ -271,16 +271,16 @@ def ingest(
 ) -> None: ...
 ```
 
-- Genera chunks con `chunker`.
-- Llama a `ovh.embed()` en lotes.
+- Generate chunks with `chunker`.
+- Call `ovh.embed()` in batches.
 - `collection.upsert(ids=..., documents=..., metadatas=..., embeddings=...)`.
-- Idempotencia: usar `Chunk.chunk_id` → reingestar el mismo post no duplica.
+- Idempotency: use `Chunk.chunk_id` → reingesting the same post does not duplicate.
 
 ### `retriever.py`
 
-Responsabilidad: dada una query, devolver top-k chunks. Dos estrategias.
+Responsibility: given a query, return the top-k chunks. Two strategies.
 
-Contrato:
+Contract:
 
 ```python
 @dataclass
@@ -288,7 +288,7 @@ class Retrieved:
     chunk_id: str
     text: str
     metadata: dict
-    score: float           # similaridad / 1 - distance
+    score: float           # similarity / 1 - distance
 
 class DenseRetriever:
     def __init__(self, ovh, collection): ...
@@ -304,256 +304,256 @@ class HydeRetriever:
 
 ### `pipeline.py`
 
-Responsabilidad: end-to-end. Acepta una query, devuelve respuesta + chunks
-usados (para auditoría).
+Responsibility: end-to-end. Accepts a query, returns the answer + the chunks
+used (for auditing).
 
 ```python
 @dataclass
 class RagResult:
     answer: str
     retrieved: list[Retrieved]
-    debug: dict  # opcional: hyde_doc, prompt final, latencias, etc.
+    debug: dict  # optional: hyde_doc, final prompt, latencies, etc.
 
 class RagPipeline:
     def __init__(self, retriever, ovh, system_prompt: str): ...
     def ask(self, query: str, k: int = 5) -> RagResult: ...
 ```
 
-Prompt sugerido (es decisión abierta):
+Suggested prompt (this is an open decision):
 ```
-Sistema: "Eres un asistente técnico. Responde usando solo el CONTEXTO. Si el
-contexto no contiene la respuesta, di que no lo sabes. Cita los posts por su
-título o slug entre paréntesis al final de cada afirmación."
+System: "You are a technical assistant. Answer using only the CONTEXT. If the
+context does not contain the answer, say you don't know. Cite the posts by their
+title or slug in parentheses at the end of each statement."
 
-Usuario: "PREGUNTA: {query}\n\nCONTEXTO:\n{joined_chunks}"
+User: "QUESTION: {query}\n\nCONTEXT:\n{joined_chunks}"
 ```
 
 ---
 
-## 7. Modelo de datos en ChromaDB
+## 7. Data model in ChromaDB
 
-Una colección por fase para poder comparar sin destruir resultados anteriores:
+One collection per phase so we can compare without destroying previous results:
 
-| Colección | Estrategia |
+| Collection | Strategy |
 |---|---|
-| `jreypo_naive_v1` | Chunks fase 1 |
-| `jreypo_semantic_md_v1` | Chunks fase 2 |
+| `jreypo_naive_v1` | Phase 1 chunks |
+| `jreypo_semantic_md_v1` | Phase 2 chunks |
 
-Fase 3 (HyDE) **reusa** `jreypo_semantic_md_v1` — HyDE solo cambia la **query**,
-no los chunks ingestados.
+Phase 3 (HyDE) **reuses** `jreypo_semantic_md_v1` — HyDE only changes the
+**query**, not the ingested chunks.
 
-Configuración de la colección:
-- Distance: `cosine` (BGE entrena para cosine).
-- `embedding_function=None` → pasamos los vectores nosotros, no que Chroma los
-  calcule (no queremos que use su embedding por defecto).
+Collection configuration:
+- Distance: `cosine` (BGE is trained for cosine).
+- `embedding_function=None` → we pass the vectors ourselves, rather than having
+  Chroma compute them (we don't want it to use its default embedding).
 
-Metadata por documento (todos los keys son strings o números en Chroma):
+Metadata per document (all keys are strings or numbers in Chroma):
 - `post_slug`, `post_title`, `post_date` (ISO), `source_url`
-- `chunk_index`, `strategy`, `section_heading` (puede ser `""` en fase 1)
+- `chunk_index`, `strategy`, `section_heading` (may be `""` in phase 1)
 
 ---
 
-## 8. Fase 1 — Chunking naïve
+## 8. Phase 1 — Naïve chunking
 
-**Hipótesis**: chunks de tamaño fijo "funcionan razonable" y dan baseline.
+**Hypothesis**: fixed-size chunks "work reasonably" and provide a baseline.
 
-**Algoritmo**: ventana deslizante por caracteres con solape.
+**Algorithm**: sliding character window with overlap.
 
-Parámetros sugeridos:
-- `chunk_chars = 1800` (≈ 450 tokens, holgado dentro del contexto del modelo).
-- `overlap = 200` (≈ 50 tokens; suficiente para no cortar oraciones cruciales).
+Suggested parameters:
+- `chunk_chars = 1800` (≈ 450 tokens, comfortably within the model's context).
+- `overlap = 200` (≈ 50 tokens; enough to avoid cutting crucial sentences).
 
-**Por qué caracteres en vez de tokens**: el tokenizer real es el del modelo de
-embeddings (BGE / SentencePiece-like). Cargarlo localmente añade dependencia y
-peso. Para fase 1, caracteres es buen proxy (≈ 4 chars/token en es/en).
+**Why characters instead of tokens**: the real tokenizer is that of the
+embedding model (BGE / SentencePiece-like). Loading it locally adds a dependency
+and weight. For phase 1, characters are a good proxy (≈ 4 chars/token in es/en).
 
-**Fallos predecibles que vamos a observar**:
-- Bloques de código cortados a mitad.
-- Una sección termina y otra empieza dentro del mismo chunk.
-- Headings sueltos sin su contenido.
-- El golden set debería capturarlos.
-
----
-
-## 9. Fase 2 — Chunking semántico por Markdown
-
-**Hipótesis**: respetar la estructura (H1/H2/H3) preserva unidad temática y
-sube recall.
-
-**Algoritmo**:
-1. Parsear el body con `markdown-it-py` u otro parser que dé tokens con tipo.
-2. Recorrer el árbol agrupando contenido bajo cada heading.
-3. Si una sección supera `max_chars = 2400`, sub-chunkearla por párrafos
-   (con overlap pequeño).
-4. Conservar el heading como `section_heading` en metadata.
-
-**Decisiones abiertas**:
-- ¿Cuál es el nivel mínimo de heading que usamos para cortar? (Mi sugerencia:
-  H2. H1 suele ser el título; H3 fragmenta demasiado.)
-- ¿Incluir el título del post como prefijo del texto del chunk para enriquecer
-  el embedding? (Mejora típicamente recall, pero contamina el chunk con info
-  redundante. A probar.)
-
-**Esperable**: Recall@5 ↑ vs fase 1, sobre todo en preguntas sobre temas
-concretos ("¿cómo configuro X en Y?").
+**Predictable failures we're going to observe**:
+- Code blocks cut in half.
+- One section ends and another begins within the same chunk.
+- Orphan headings without their content.
+- The golden set should capture these.
 
 ---
 
-## 10. Fase 3 — HyDE
+## 9. Phase 2 — Semantic chunking by Markdown
 
-**Hipótesis**: las queries son **asimétricas** respecto al corpus (cortas,
-abstractas, mal redactadas). Embeddearlas directamente lleva a vectores que no
-viven en la misma "región" que los chunks (que son largos y descriptivos).
-Generar un documento hipotético acerca el vector de la query al espacio del
-corpus.
+**Hypothesis**: respecting the structure (H1/H2/H3) preserves topical unity and
+raises recall.
 
-**Algoritmo**:
+**Algorithm**:
+1. Parse the body with `markdown-it-py` or another parser that yields typed tokens.
+2. Walk the tree grouping content under each heading.
+3. If a section exceeds `max_chars = 2400`, sub-chunk it by paragraphs
+   (with small overlap).
+4. Keep the heading as `section_heading` in metadata.
+
+**Open decisions**:
+- What is the minimum heading level we use to split? (My suggestion: H2. H1 is
+  usually the title; H3 fragments too much.)
+- Include the post title as a prefix of the chunk text to enrich the embedding?
+  (Typically improves recall, but pollutes the chunk with redundant info. Worth
+  testing.)
+
+**Expected**: Recall@5 ↑ vs phase 1, especially on questions about specific
+topics ("how do I configure X in Y?").
+
+---
+
+## 10. Phase 3 — HyDE
+
+**Hypothesis**: queries are **asymmetric** with respect to the corpus (short,
+abstract, poorly worded). Embedding them directly produces vectors that don't
+live in the same "region" as the chunks (which are long and descriptive).
+Generating a hypothetical document brings the query vector closer to the corpus
+space.
+
+**Algorithm**:
 1. `hyde_doc = chat([{system: "...", user: prompt(query)}])`.
 2. `vec = embed(hyde_doc)`.
 3. `chunks = collection.query(vec, k)`.
 
-**Prompt sugerido** para generar el hyde_doc:
+**Suggested prompt** to generate the hyde_doc:
 
 ```
-Eres un experto técnico. Escribe un fragmento breve (3-5 frases) que podría
-formar parte de un post de blog respondiendo a la siguiente pregunta. Escribe
-en el mismo idioma que la pregunta. No inventes nombres propios; si necesitas
-un ejemplo, deja un placeholder.
+You are a technical expert. Write a brief fragment (3-5 sentences) that could be
+part of a blog post answering the following question. Write in the same language
+as the question. Don't invent proper nouns; if you need an example, leave a
+placeholder.
 
-Pregunta: {query}
+Question: {query}
 ```
 
-**Decisiones abiertas**:
-- ¿Un solo hyde_doc o N=3 con `temperature` alta y promediamos vectores?
-  (Más diversidad → más robusto, doble coste.)
-- ¿Combinamos HyDE con la query original (RRF, reciprocal rank fusion)? Fuera
-  del alcance del lab, pero buena idea para evaluar luego.
+**Open decisions**:
+- A single hyde_doc or N=3 with high `temperature` and average the vectors?
+  (More diversity → more robust, double the cost.)
+- Do we combine HyDE with the original query (RRF, reciprocal rank fusion)?
+  Out of scope for the lab, but a good idea to evaluate later.
 
-**Esperable**: Recall@5 ↑ vs fase 2 en queries cortas/ambiguas; puede empeorar
-ligeramente en queries muy específicas (el modelo "alucina" detalles que
-desvían el vector).
+**Expected**: Recall@5 ↑ vs phase 2 on short/ambiguous queries; may get slightly
+worse on very specific queries (the model "hallucinates" details that pull the
+vector off course).
 
 ---
 
-## 11. Decisiones técnicas transversales
+## 11. Cross-cutting technical decisions
 
-| Tema | Decisión | Por qué |
+| Topic | Decision | Why |
 |---|---|---|
-| `chunk_id` | `f"{strategy}:{slug}:{index:04d}"` o `hash(strategy+slug+index)` | Determinista → reingestar no duplica. |
-| Distancia | cosine | BGE entrena para cosine. |
-| Dim. embedding | 3584 (bge-multi-gemma2) | Fijado por el modelo. |
-| Batching embed | 32–64 textos por llamada | Ajustar según rate limits de OVH. |
-| Reintentos | Backoff exponencial en 429/5xx, máx 5 intentos | Endpoints reales fallan. |
-| Lenguaje query/corpus | Multilingüe ES+EN | bge-multi-gemma2 lo cubre. |
-| Counting tokens | Aproximar por caracteres en fase 1 | Evita cargar tokenizer pesado. Si en fase 2/3 hace falta precisión, usar el tokenizer de HF de BGE. |
-| Logging | `rich` para output legible en notebooks | No es producción; legibilidad gana. |
-| Tipo de IDs en Chroma | string | API de Chroma lo requiere. |
-| Almacenamiento del texto | dentro del campo `documents` de Chroma | Evita una segunda store para lookup. |
-| Idempotencia ingesta | `collection.upsert(...)` con IDs deterministas | Re-correr el script no rompe nada. |
+| `chunk_id` | `f"{strategy}:{slug}:{index:04d}"` or `hash(strategy+slug+index)` | Deterministic → reingesting doesn't duplicate. |
+| Distance | cosine | BGE is trained for cosine. |
+| Embedding dim | 3584 (bge-multi-gemma2) | Fixed by the model. |
+| Embed batching | 32–64 texts per call | Tune according to OVH rate limits. |
+| Retries | Exponential backoff on 429/5xx, max 5 attempts | Real endpoints fail. |
+| Query/corpus language | English corpus; queries may be ES+EN | bge-multi-gemma2 covers both. |
+| Token counting | Approximate by characters in phase 1 | Avoids loading a heavy tokenizer. If phase 2/3 need precision, use BGE's HF tokenizer. |
+| Logging | `rich` for readable output in notebooks | Not production; readability wins. |
+| ID type in Chroma | string | Chroma's API requires it. |
+| Text storage | inside Chroma's `documents` field | Avoids a second store for lookup. |
+| Ingestion idempotency | `collection.upsert(...)` with deterministic IDs | Re-running the script breaks nothing. |
 
 ---
 
-## 12. Evaluación
+## 12. Evaluation
 
 ### Golden set
 
-Formato propuesto (ver `eval/golden_set.yaml`):
+Proposed format (see `eval/golden_set.yaml`):
 
 ```yaml
 questions:
   - id: q001
-    question: "¿Cómo configuraba HPVM las vNICs en HP-UX?"
+    question: "How did HPVM configure vNICs on HP-UX?"
     expected_slugs:
       - moving-vnics-between-vswitches
-    expected_section: null      # o un H2/H3 concreto
-    category: howto             # factual | conceptual | comparativa | howto
-    notes: "Post antiguo de HPVM 3.5"
+    expected_section: null      # or a specific H2/H3
+    category: howto             # factual | conceptual | comparison | howto
+    notes: "Old HPVM 3.5 post"
 ```
 
-Aproximaciones para construirlo (20-30 preguntas):
-- **Factual** (8-10): "¿qué versión de X menciona el post sobre Y?"
-- **Howto** (8-10): "¿cómo se hacía X según el blog?"
-- **Conceptual** (4-6): "¿qué argumenta el blog sobre Z?"
-- **Comparativa** (2-4): "¿qué diferencia menciona entre A y B?"
+Approaches to build it (20-30 questions):
+- **Factual** (8-10): "what version of X does the post about Y mention?"
+- **Howto** (8-10): "how was X done according to the blog?"
+- **Conceptual** (4-6): "what does the blog argue about Z?"
+- **Comparison** (2-4): "what difference does it mention between A and B?"
 
-### Métricas
+### Metrics
 
-Por fase, calcular sobre todo el golden set:
-- **Recall@1**: ¿el primer chunk pertenece a uno de los `expected_slugs`?
+Per phase, compute over the whole golden set:
+- **Recall@1**: does the first chunk belong to one of the `expected_slugs`?
 - **Recall@3**, **Recall@5**.
-- **MRR** (Mean Reciprocal Rank): media de `1/rank` del primer chunk correcto.
-- (Opcional) **Calidad de respuesta**: rúbrica 1-5 manual sobre 10 queries,
-  evaluando fidelidad al contexto y completitud.
+- **MRR** (Mean Reciprocal Rank): mean of `1/rank` of the first correct chunk.
+- (Optional) **Answer quality**: manual 1-5 rubric over 10 queries, evaluating
+  faithfulness to the context and completeness.
 
-### Tabla final esperada
+### Expected final table
 
 ```
-| Fase                | Recall@1 | Recall@3 | Recall@5 | MRR  |
+| Phase               | Recall@1 | Recall@3 | Recall@5 | MRR  |
 |---------------------|---------:|---------:|---------:|-----:|
 | 1. Naïve            |     0.42 |     0.65 |     0.78 | 0.55 |
 | 2. Semantic MD      |     0.55 |     0.78 |     0.88 | 0.68 |
 | 3. HyDE (semantic)  |     0.58 |     0.82 |     0.91 | 0.72 |
 ```
 
-(Cifras inventadas. Lo importante es la dirección de los deltas.)
+(Made-up figures. What matters is the direction of the deltas.)
 
 ---
 
-## 13. Plan de implementación sugerido
+## 13. Suggested implementation plan
 
-Orden propuesto. Cada paso es una sesión corta; commitea entre pasos.
+Proposed order. Each step is a short session; commit between steps.
 
-1. **`docker compose up -d chroma`** y verifica `curl http://localhost:8000/api/v2/heartbeat`.
+1. **`docker compose up -d chroma`** and verify `curl http://localhost:8000/api/v2/heartbeat`.
 2. **venv + install** — `python3.14 -m venv .venv && source .venv/bin/activate && pip install -e ".[dev]"`.
-3. **`src/loader.py`** — leer 5 posts, imprimirlos. Test rápido en REPL.
-4. **`src/ovh_client.py`** — método `embed(["hola"])` devuelve 1 vector de 3584. Método `chat([...])` devuelve string.
-5. **`scripts/smoke_test.py`** — encadena los chequeos: blog, Chroma, embed, chat.
-6. **`src/chunker.py` (naïve)** — `chunk_post_naive` sobre un post de ejemplo, inspecciona los chunks visualmente.
-7. **`src/ingest.py`** — ingesta a `jreypo_naive_v1`. Cuenta cuántos chunks acabaron en Chroma.
-8. **`src/retriever.py` (dense)** — lanza 3 queries a mano, mira resultados.
-9. **Golden set** — escribe 20-30 preguntas en `eval/golden_set.yaml`.
-10. **`eval/run_eval.py`** — Recall@k + MRR sobre fase 1. Guarda resultados.
-11. **`src/chunker.py` (semantic_md)** + reingest a `jreypo_semantic_md_v1`.
-12. **Re-correr eval** → fase 2 vs fase 1.
-13. **HyDE** en `retriever.py` (sin ingestar nada nuevo).
-14. **Re-correr eval** → fase 3 vs fase 2.
-15. **Notebooks** `01/02/03` — explicación + run + métricas + observaciones cualitativas.
-16. **Bonus k8s** — manifests para el homelab.
+3. **`src/loader.py`** — read 5 posts, print them. Quick test in the REPL.
+4. **`src/ovh_client.py`** — `embed(["hello"])` returns 1 vector of 3584. `chat([...])` returns a string.
+5. **`scripts/smoke_test.py`** — chain the checks: blog, Chroma, embed, chat.
+6. **`src/chunker.py` (naïve)** — `chunk_post_naive` over a sample post, inspect the chunks visually.
+7. **`src/ingest.py`** — ingest into `jreypo_naive_v1`. Count how many chunks ended up in Chroma.
+8. **`src/retriever.py` (dense)** — run 3 queries by hand, look at the results.
+9. **Golden set** — write 20-30 questions in `eval/golden_set.yaml`.
+10. **`eval/run_eval.py`** — Recall@k + MRR over phase 1. Save the results.
+11. **`src/chunker.py` (semantic_md)** + reingest into `jreypo_semantic_md_v1`.
+12. **Re-run eval** → phase 2 vs phase 1.
+13. **HyDE** in `retriever.py` (without ingesting anything new).
+14. **Re-run eval** → phase 3 vs phase 2.
+15. **Notebooks** `01/02/03` — explanation + run + metrics + qualitative observations.
+16. **Bonus k8s** — manifests for the homelab.
 
 ---
 
-## 14. Decisiones abiertas (las resuelves tú al implementar)
+## 14. Open decisions (you resolve these at implementation time)
 
-- ¿Tokenizer real de BGE o aproximación por caracteres? (recomendación: caracteres en fase 1, decidir luego).
-- ¿Incluir título del post como prefijo del texto del chunk? (recomendación: probar A/B en fase 2).
-- ¿Una URL base de OVH para ambos modelos o dos? (depende del panel de OVH).
-- ¿N hyde_docs y promediamos, o uno solo? (recomendación: uno solo primero, N=3 como mejora si el lab da tiempo).
-- ¿`temperature` en HyDE? (recomendación: 0.7 — queremos diversidad léxica, no determinismo).
-- ¿Filtros de metadata en el retrieval (por fecha, por tag)? Útil pero fuera del alcance — anótalo como follow-up.
-- ¿Reranker (cross-encoder) entre retrieval y generación? Mejora típicamente recall, fuera del alcance del lab.
-
----
-
-## 15. Lecturas recomendadas
-
-- HyDE original: Gao et al., *Precise Zero-Shot Dense Retrieval without Relevance Labels* (2022).
-- BGE family: BAAI documentation en HF (`BAAI/bge-multilingual-gemma2`).
-- ChromaDB docs — secciones de `HttpClient`, `Collection.upsert`, `Collection.query`.
-- OpenAI SDK con `base_url`: ejemplo canónico de usar el SDK contra proveedores compatibles.
+- BGE's real tokenizer or character approximation? (recommendation: characters in phase 1, decide later).
+- Include the post title as a prefix of the chunk text? (recommendation: A/B test in phase 2).
+- One OVH base URL for both models or two? (depends on the OVH panel).
+- N hyde_docs and average, or a single one? (recommendation: a single one first, N=3 as an improvement if the lab has time).
+- `temperature` in HyDE? (recommendation: 0.7 — we want lexical diversity, not determinism).
+- Metadata filters in retrieval (by date, by tag)? Useful but out of scope — note it as a follow-up.
+- Reranker (cross-encoder) between retrieval and generation? Typically improves recall, out of scope for the lab.
 
 ---
 
-## Apéndice A — Variables de entorno
+## 15. Recommended reading
 
-Definidas en `.env` (no commiteado). Plantilla en `.env.example`.
+- Original HyDE: Gao et al., *Precise Zero-Shot Dense Retrieval without Relevance Labels* (2022).
+- BGE family: BAAI documentation on HF (`BAAI/bge-multilingual-gemma2`).
+- ChromaDB docs — `HttpClient`, `Collection.upsert`, `Collection.query` sections.
+- OpenAI SDK with `base_url`: the canonical example of using the SDK against compatible providers.
 
-| Variable | Ejemplo | Notas |
+---
+
+## Appendix A — Environment variables
+
+Defined in `.env` (not committed). Template in `.env.example`.
+
+| Variable | Example | Notes |
 |---|---|---|
-| `OVH_AI_API_KEY` | `eyJhbGciOi...` | Bearer token de OVH. |
-| `OVH_AI_BASE_URL` | `https://.../v1` | Sin trailing slash. |
-| `OVH_EMBEDDING_MODEL` | `bge-multilingual-gemma2` | Tal como aparece en OVH. |
-| `OVH_CHAT_MODEL` | `gpt-oss-120b` | Idem. |
-| `CHROMA_HOST` | `localhost` | En k8s será el service name. |
+| `OVH_AI_API_KEY` | `eyJhbGciOi...` | OVH Bearer token. |
+| `OVH_AI_BASE_URL` | `https://.../v1` | No trailing slash. |
+| `OVH_EMBEDDING_MODEL` | `bge-multilingual-gemma2` | As it appears in OVH. |
+| `OVH_CHAT_MODEL` | `gpt-oss-120b` | Same. |
+| `CHROMA_HOST` | `localhost` | In k8s it will be the service name. |
 | `CHROMA_PORT` | `8000` | |
-| `BLOG_REPO_PATH` | `/Users/jreypo/Documents/Workspace/jreypo.github.io` | Path absoluto. |
-| `BLOG_POSTS_SUBDIR` | `content/posts` | Relativo a `BLOG_REPO_PATH`. |
+| `BLOG_REPO_PATH` | `/Users/jreypo/Documents/Workspace/jreypo.github.io` | Absolute path. |
+| `BLOG_POSTS_SUBDIR` | `content/posts` | Relative to `BLOG_REPO_PATH`. |
