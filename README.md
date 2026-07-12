@@ -1,4 +1,4 @@
-# ovh-lab-01 — RAG pipeline over jreypo.io
+# rag-chunking-lab — RAG pipeline over jreypo.io
 
 A lab to build, **by hand**, a RAG (Retrieval-Augmented Generation) pipeline
 over the corpus of the [`jreypo.io`](https://jreypo.io) blog, using
@@ -36,7 +36,7 @@ change moves the metric:
 ## Repository structure
 
 ```
-ovh-lab-01/
+rag-chunking-lab/
 ├── ARCHITECTURE.md       Detailed technical spec (READ it first)
 ├── README.md             This file
 ├── .env.example          Environment variables template

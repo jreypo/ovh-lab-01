@@ -1,5 +1,5 @@
 [project]
-name = "ovh-lab-01"
+name = "rag-chunking-lab"
 version = "0.1.0"
 description = "RAG pipeline from scratch over jreypo.io corpus using OVH AI Endpoints"
 requires-python = ">=3.13"

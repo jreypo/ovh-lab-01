@@ -128,7 +128,7 @@ question
 What is ALREADY done (scaffold):
 
 ```
-ovh-lab-01/
+rag-chunking-lab/
 ├── .env.example          ← variables to fill in
 ├── .gitignore            ← .env, .venv/, chroma_data/, __pycache__/
 ├── docker-compose.yml    ← Chroma service with persistent volume

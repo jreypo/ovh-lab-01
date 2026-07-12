@@ -1,7 +1,7 @@
 services:
   chroma:
     image: chromadb/chroma:latest
-    container_name: ovh-lab-01-chroma
+    container_name: rag-chunking-lab-chroma
     restart: unless-stopped
     ports:
       - "${CHROMA_PORT:-8000}:8000"
